@@ -268,15 +268,16 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
                 'class' => 'wc-enhanced-select shipstation-carrier-select'
             ),
             'service_codes' => array(
-                'title' => __('Service Codes', 'shipstation-live-rates'),
+                'title' => __('Services', 'shipstation-live-rates'),
                 'type' => 'multiselect',
                 'description' => __('Select specific services to offer. Leave empty to show all services for this carrier. The list updates based on your selected carrier.', 'shipstation-live-rates'),
                 'default' => '',
                 'desc_tip' => true,
-                'options' => array(),
+                'options' => $this->get_carrier_services($this->carrier_code),
                 'class' => 'wc-enhanced-select shipstation-services-select',
                 'custom_attributes' => array(
-                    'data-placeholder' => __('Select services (optional)', 'shipstation-live-rates')
+                    'data-placeholder' => __('Select services (optional)', 'shipstation-live-rates'),
+                    'data-carrier' => $this->carrier_code
                 )
             ),
             'residential' => array(

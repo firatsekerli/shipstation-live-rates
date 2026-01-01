@@ -72,7 +72,7 @@ Click on **ShipStation Live Rates** to configure:
   - List is cached for 24 hours for performance
   - To refresh the carrier list, save the settings form
 
-- **Service Codes**: (Optional) Select specific services from the multiselect dropdown
+- **Services**: (Optional) Select specific services from the multiselect dropdown
   - Services are **automatically loaded** based on your selected carrier
   - Use the dropdown to select which services to offer customers
   - Leave empty to show all available services for the carrier
