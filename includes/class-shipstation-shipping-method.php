@@ -389,15 +389,10 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         // Render services checkbox table if a carrier is selected
         if (!empty($this->carrier_code)) {
             $this->render_services_table();
+        } else {
+            echo '<div class="notice notice-info"><p>' . __('Select a carrier and save settings to see available services.', 'shipstation-live-rates') . '</p></div>';
         }
         ?>
-
-        <p class="submit">
-            <button type="submit" class="button-primary woocommerce-save-button" name="save" value="<?php esc_attr_e('Save changes', 'shipstation-live-rates'); ?>">
-                <?php esc_html_e('Save changes', 'shipstation-live-rates'); ?>
-            </button>
-            <?php wp_nonce_field('woocommerce-settings'); ?>
-        </p>
         <?php
     }
 
@@ -418,12 +413,13 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         }
 
         ?>
-        <h3><?php _e('Available Services', 'shipstation-live-rates'); ?></h3>
-        <p class="description">
-            <?php _e('Select which shipping services to offer customers. Leave all unchecked to show all services.', 'shipstation-live-rates'); ?>
-        </p>
+        <div id="shipstation-services-container">
+            <h3><?php _e('Available Services', 'shipstation-live-rates'); ?></h3>
+            <p class="description">
+                <?php _e('Select which shipping services to offer customers. Leave all unchecked to show all services.', 'shipstation-live-rates'); ?>
+            </p>
 
-        <table class="widefat shipstation-services-table" style="max-width: 800px;">
+            <table class="widefat shipstation-services-table" style="max-width: 800px;">
             <thead>
                 <tr>
                     <th style="width: 50px; text-align: center;">
@@ -488,6 +484,7 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
             background: #f9f9f9;
         }
         </style>
+        </div>
         <?php
     }
 

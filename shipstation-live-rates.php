@@ -50,6 +50,7 @@ class ShipStation_Live_Rates {
         add_action('admin_notices', array($this, 'admin_notices'));
         add_action('before_woocommerce_init', array($this, 'declare_compatibility'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
+        add_action('wp_ajax_shipstation_reload_services', array($this, 'ajax_reload_services'));
     }
     
     /**
@@ -198,7 +199,116 @@ class ShipStation_Live_Rates {
             true
         );
 
-        // No longer need AJAX variables for dynamic service loading
+        wp_localize_script('shipstation-live-rates-admin', 'shipstation_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('shipstation_reload_services')
+        ));
+    }
+
+    /**
+     * AJAX handler to reload services table when carrier changes
+     */
+    public function ajax_reload_services() {
+        check_ajax_referer('shipstation_reload_services', 'nonce');
+
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error('Unauthorized');
+        }
+
+        $carrier_code = isset($_POST['carrier_code']) ? sanitize_text_field($_POST['carrier_code']) : '';
+        $instance_id = isset($_POST['instance_id']) ? absint($_POST['instance_id']) : 0;
+
+        if (empty($carrier_code) || empty($instance_id)) {
+            wp_send_json_error('Missing parameters');
+        }
+
+        // Load the shipping method class
+        if (!class_exists('WC_ShipStation_Shipping_Method')) {
+            require_once plugin_dir_path(__FILE__) . 'includes/class-shipstation-shipping-method.php';
+        }
+
+        // Create instance
+        $shipping_method = new WC_ShipStation_Shipping_Method($instance_id);
+
+        // Get services for this carrier
+        $reflection = new ReflectionClass($shipping_method);
+        $method = $reflection->getMethod('get_carrier_services');
+        $method->setAccessible(true);
+        $services = $method->invoke($shipping_method, $carrier_code, false);
+
+        if (empty($services)) {
+            ob_start();
+            echo '<div class="notice notice-warning"><p>' . __('No services found for this carrier.', 'shipstation-live-rates') . '</p></div>';
+            $html = ob_get_clean();
+            wp_send_json_success(array('html' => $html));
+        }
+
+        // Get currently selected services
+        $selected_services = $shipping_method->get_option('service_codes', array());
+        if (!is_array($selected_services)) {
+            $selected_services = array();
+        }
+
+        // Generate the services table HTML
+        ob_start();
+        ?>
+        <h3><?php _e('Available Services', 'shipstation-live-rates'); ?></h3>
+        <p class="description">
+            <?php _e('Select which shipping services to offer customers. Leave all unchecked to show all services.', 'shipstation-live-rates'); ?>
+        </p>
+
+        <table class="widefat shipstation-services-table" style="max-width: 800px;">
+            <thead>
+                <tr>
+                    <th style="width: 50px; text-align: center;">
+                        <input type="checkbox" id="shipstation-select-all-services" />
+                    </th>
+                    <th><?php _e('Service Name', 'shipstation-live-rates'); ?></th>
+                    <th><?php _e('Service Code', 'shipstation-live-rates'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($services as $code => $name) :
+                    $checked = in_array($code, $selected_services);
+                ?>
+                <tr>
+                    <td style="text-align: center;">
+                        <input
+                            type="checkbox"
+                            name="<?php echo esc_attr($shipping_method->get_field_key('service_codes')); ?>[]"
+                            value="<?php echo esc_attr($code); ?>"
+                            <?php checked($checked, true); ?>
+                            class="shipstation-service-checkbox"
+                        />
+                    </td>
+                    <td><?php echo esc_html($name); ?></td>
+                    <td><code><?php echo esc_html($code); ?></code></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <style>
+        .shipstation-services-table {
+            margin: 20px 0;
+            border: 1px solid #ccc;
+        }
+        .shipstation-services-table th {
+            background: #f9f9f9;
+            padding: 10px;
+            font-weight: bold;
+        }
+        .shipstation-services-table td {
+            padding: 10px;
+            border-top: 1px solid #eee;
+        }
+        .shipstation-services-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+        </style>
+        <?php
+        $html = ob_get_clean();
+        wp_send_json_success(array('html' => $html));
     }
 }
 
