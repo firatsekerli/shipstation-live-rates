@@ -131,11 +131,22 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         // Handle service_codes from our custom checkbox table
         // This must be done AFTER parent::process_admin_options() so settings are initialized
         $service_codes_key = $this->get_field_key('service_codes');
+
+        // Debug: Log POST data
+        error_log('ShipStation SAVE: Looking for key: ' . $service_codes_key);
+        error_log('ShipStation SAVE: $_POST keys: ' . print_r(array_keys($_POST), true));
+        error_log('ShipStation SAVE: isset check: ' . (isset($_POST[$service_codes_key]) ? 'yes' : 'no'));
+        if (isset($_POST[$service_codes_key])) {
+            error_log('ShipStation SAVE: POST value: ' . print_r($_POST[$service_codes_key], true));
+        }
+
         if (isset($_POST[$service_codes_key]) && is_array($_POST[$service_codes_key])) {
             $service_codes = array_map('sanitize_text_field', $_POST[$service_codes_key]);
+            error_log('ShipStation SAVE: Saving services: ' . print_r($service_codes, true));
             $this->update_option('service_codes', $service_codes);
         } else {
             // No services selected, save empty array
+            error_log('ShipStation SAVE: No services in POST - saving empty array');
             $this->update_option('service_codes', array());
         }
 
