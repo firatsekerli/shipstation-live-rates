@@ -72,11 +72,12 @@ Click on **ShipStation Live Rates** to configure:
   - List is cached for 24 hours for performance
   - To refresh the carrier list, save the settings form
 
-- **Services**: (Optional) Select specific services from the multiselect dropdown
+- **Services**: (Optional) Select specific services from the checkbox table
   - Services are **automatically loaded** based on your selected carrier
-  - Use the dropdown to select which services to offer customers
-  - Leave empty to show all available services for the carrier
-  - Changes when you select a different carrier
+  - After selecting a carrier and saving, a table of available services will appear
+  - Check the services you want to offer to customers
+  - Leave all unchecked to show all available services for the carrier
+  - Use "Select All" checkbox to quickly select/deselect all services
 
 - **Residential Delivery**: Check if most deliveries are to residential addresses (affects rates)
 
@@ -243,6 +244,16 @@ For issues or questions:
    - API response (with credentials removed)
 
 ## Changelog
+
+### 1.3.0
+- **New**: Full-page settings interface (replaces modal)
+- **New**: Checkbox table for service selection (replaces multiselect dropdown)
+- **Improved**: More reliable form submission with standard POST
+- **Improved**: Better user experience with checkbox table showing all services at once
+- **Improved**: "Select All" checkbox for quick service selection
+- **Improved**: Services now save reliably without modal issues
+- **Fixed**: Service selections not saving in WooCommerce Backbone modal
+- **Removed**: AJAX service loading (no longer needed with full-page approach)
 
 ### 1.2.0
 - **New**: Dynamic service selection - automatically loads available services based on selected carrier

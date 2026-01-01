@@ -3,7 +3,7 @@
  * Plugin Name: ShipStation Live Rates
  * Plugin URI: https://wapiti.digital
  * Description: Retrieve live shipping rates from ShipStation API for WooCommerce
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: Wapiti Digital
  * Author URI: https://wapiti.digital
  * Text Domain: shipstation-live-rates
@@ -31,7 +31,7 @@ class ShipStation_Live_Rates {
     /**
      * Plugin version
      */
-    const VERSION = '1.2.0';
+    const VERSION = '1.3.0';
     
     /**
      * Instance of this class
@@ -50,7 +50,6 @@ class ShipStation_Live_Rates {
         add_action('admin_notices', array($this, 'admin_notices'));
         add_action('before_woocommerce_init', array($this, 'declare_compatibility'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
-        add_action('wp_ajax_shipstation_get_services', array($this, 'ajax_get_services'));
     }
     
     /**
@@ -199,43 +198,7 @@ class ShipStation_Live_Rates {
             true
         );
 
-        wp_localize_script('shipstation-live-rates-admin', 'shipstation_ajax', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('shipstation_get_services')
-        ));
-    }
-
-    /**
-     * AJAX handler to get services for a carrier
-     */
-    public function ajax_get_services() {
-        check_ajax_referer('shipstation_get_services', 'nonce');
-
-        if (!current_user_can('manage_woocommerce')) {
-            wp_send_json_error('Unauthorized');
-        }
-
-        $carrier_code = isset($_POST['carrier_code']) ? sanitize_text_field($_POST['carrier_code']) : '';
-
-        if (empty($carrier_code)) {
-            wp_send_json_error('No carrier code provided');
-        }
-
-        // Load the shipping method class
-        if (!class_exists('WC_ShipStation_Shipping_Method')) {
-            require_once plugin_dir_path(__FILE__) . 'includes/class-shipstation-shipping-method.php';
-        }
-
-        // Create a temporary instance to use the method
-        $shipping_method = new WC_ShipStation_Shipping_Method();
-
-        // Use reflection to call the private method
-        $reflection = new ReflectionClass($shipping_method);
-        $method = $reflection->getMethod('get_carrier_services');
-        $method->setAccessible(true);
-        $services = $method->invoke($shipping_method, $carrier_code);
-
-        wp_send_json_success($services);
+        // No longer need AJAX variables for dynamic service loading
     }
 }
 

@@ -42,12 +42,18 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         $this->supports = array(
             'shipping-zones',
             'instance-settings',
-            'instance-settings-modal',
         );
         
         $this->init();
     }
-    
+
+    /**
+     * Get the admin options URL for this instance
+     */
+    public function get_admin_options_url() {
+        return admin_url('admin.php?page=wc-settings&tab=shipping&section=' . $this->id . '&instance_id=' . $this->instance_id);
+    }
+
     /**
      * Initialize settings
      */
@@ -119,18 +125,18 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_shipstation_services_%'");
         $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_timeout_shipstation_services_%'");
 
-        // Debug logging
-        error_log('ShipStation: Processing admin options');
-        if (isset($_POST['woocommerce_shipstation_live_rates_service_codes'])) {
-            error_log('ShipStation: Service codes POST data: ' . print_r($_POST['woocommerce_shipstation_live_rates_service_codes'], true));
+        // Handle service_codes from our custom checkbox table
+        $service_codes_key = $this->get_field_key('service_codes');
+        if (isset($_POST[$service_codes_key]) && is_array($_POST[$service_codes_key])) {
+            $service_codes = array_map('sanitize_text_field', $_POST[$service_codes_key]);
+            update_option($this->get_option_key() . '[service_codes]', $service_codes);
+        } else {
+            // No services selected, save empty array
+            update_option($this->get_option_key() . '[service_codes]', array());
         }
 
-        // Call parent method to save settings
+        // Call parent method to save other settings
         $result = parent::process_admin_options();
-
-        // Log what was saved
-        $saved_services = $this->get_option('service_codes');
-        error_log('ShipStation: Saved service codes: ' . print_r($saved_services, true));
 
         return $result;
     }
@@ -307,25 +313,11 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
             'carrier_code' => array(
                 'title' => __('Carriers', 'shipstation-live-rates'),
                 'type' => 'select',
-                'description' => __('Select the carrier for rate calculations in this zone. Only carriers enabled in your ShipStation account are shown.', 'shipstation-live-rates'),
+                'description' => __('Select the carrier for rate calculations in this zone. Only carriers enabled in your ShipStation account are shown. Save settings to load available services.', 'shipstation-live-rates'),
                 'default' => 'stamps_com',
                 'options' => $this->get_enabled_carriers(),
                 'desc_tip' => true,
-                'class' => 'wc-enhanced-select shipstation-carrier-select'
-            ),
-            'service_codes' => array(
-                'title' => __('Services', 'shipstation-live-rates'),
-                'type' => 'multiselect',
-                'description' => __('Select specific services to offer. Leave empty to show all services for this carrier. The list updates based on your selected carrier. <a href="#" class="shipstation-refresh-services" style="color: #2271b1;">Refresh services list</a>', 'shipstation-live-rates'),
-                'default' => array(),
-                'desc_tip' => false,
-                'options' => $this->get_carrier_services($this->carrier_code, true),
-                'class' => 'wc-enhanced-select shipstation-services-select',
-                'custom_attributes' => array(
-                    'data-placeholder' => __('Select services (optional)', 'shipstation-live-rates'),
-                    'data-carrier' => $this->carrier_code,
-                    'multiple' => 'multiple'
-                )
+                'class' => 'wc-enhanced-select'
             ),
             'residential' => array(
                 'title' => __('Residential Delivery', 'shipstation-live-rates'),
@@ -363,7 +355,142 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
             ),
         );
     }
-    
+
+    /**
+     * Admin options - override to provide custom full-page settings
+     */
+    public function admin_options() {
+        // Only show this if we have an instance_id (zone-specific settings)
+        if (isset($_GET['instance_id']) && $this->instance_id) {
+            $this->render_instance_settings_page();
+        } else {
+            // This shouldn't happen for zone-based shipping, but show a message just in case
+            echo '<p>' . __('Please configure this shipping method from WooCommerce > Settings > Shipping > Zones.', 'shipstation-live-rates') . '</p>';
+        }
+    }
+
+    /**
+     * Render the full-page instance settings
+     */
+    private function render_instance_settings_page() {
+        // Get zone info
+        $zone = WC_Shipping_Zones::get_zone_by('instance_id', $this->instance_id);
+        $zone_name = $zone ? $zone->get_zone_name() : __('Shipping Zone', 'shipstation-live-rates');
+
+        ?>
+        <h2><?php echo esc_html($this->get_method_title()); ?> - <?php echo esc_html($zone_name); ?></h2>
+        <p><?php echo esc_html($this->get_method_description()); ?></p>
+
+        <table class="form-table">
+            <?php $this->generate_settings_html($this->get_instance_form_fields(), true); ?>
+        </table>
+
+        <?php
+        // Render services checkbox table if a carrier is selected
+        if (!empty($this->carrier_code)) {
+            $this->render_services_table();
+        }
+        ?>
+
+        <p class="submit">
+            <button type="submit" class="button-primary woocommerce-save-button" name="save" value="<?php esc_attr_e('Save changes', 'shipstation-live-rates'); ?>">
+                <?php esc_html_e('Save changes', 'shipstation-live-rates'); ?>
+            </button>
+            <?php wp_nonce_field('woocommerce-settings'); ?>
+        </p>
+        <?php
+    }
+
+    /**
+     * Render services checkbox table
+     */
+    private function render_services_table() {
+        $services = $this->get_carrier_services($this->carrier_code, false);
+        $selected_services = $this->get_option('service_codes', array());
+
+        if (empty($services)) {
+            return;
+        }
+
+        // Ensure selected_services is an array
+        if (!is_array($selected_services)) {
+            $selected_services = array();
+        }
+
+        ?>
+        <h3><?php _e('Available Services', 'shipstation-live-rates'); ?></h3>
+        <p class="description">
+            <?php _e('Select which shipping services to offer customers. Leave all unchecked to show all services.', 'shipstation-live-rates'); ?>
+        </p>
+
+        <table class="widefat shipstation-services-table" style="max-width: 800px;">
+            <thead>
+                <tr>
+                    <th style="width: 50px; text-align: center;">
+                        <input type="checkbox" id="shipstation-select-all-services" />
+                    </th>
+                    <th><?php _e('Service Name', 'shipstation-live-rates'); ?></th>
+                    <th><?php _e('Service Code', 'shipstation-live-rates'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($services as $code => $name) :
+                    $checked = in_array($code, $selected_services);
+                ?>
+                <tr>
+                    <td style="text-align: center;">
+                        <input
+                            type="checkbox"
+                            name="<?php echo esc_attr($this->get_field_key('service_codes')); ?>[]"
+                            value="<?php echo esc_attr($code); ?>"
+                            <?php checked($checked, true); ?>
+                            class="shipstation-service-checkbox"
+                        />
+                    </td>
+                    <td><?php echo esc_html($name); ?></td>
+                    <td><code><?php echo esc_html($code); ?></code></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <script type="text/javascript">
+        jQuery(document).ready(function($) {
+            // Select/deselect all
+            $('#shipstation-select-all-services').on('change', function() {
+                $('.shipstation-service-checkbox').prop('checked', $(this).prop('checked'));
+            });
+
+            // Update "select all" state when individual checkboxes change
+            $('.shipstation-service-checkbox').on('change', function() {
+                var total = $('.shipstation-service-checkbox').length;
+                var checked = $('.shipstation-service-checkbox:checked').length;
+                $('#shipstation-select-all-services').prop('checked', total === checked);
+            });
+        });
+        </script>
+
+        <style>
+        .shipstation-services-table {
+            margin: 20px 0;
+            border: 1px solid #ccc;
+        }
+        .shipstation-services-table th {
+            background: #f9f9f9;
+            padding: 10px;
+            font-weight: bold;
+        }
+        .shipstation-services-table td {
+            padding: 10px;
+            border-top: 1px solid #eee;
+        }
+        .shipstation-services-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+        </style>
+        <?php
+    }
+
     /**
      * Calculate shipping rates
      */
