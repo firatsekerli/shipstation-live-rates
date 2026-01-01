@@ -191,7 +191,7 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
             return $fallback_carriers;
         }
 
-        // Process carriers into options array
+        // Process carriers into options array and extract services
         $carriers = array();
         foreach ($carriers_data as $carrier) {
             // Try different possible field names from ShipStation API
@@ -203,6 +203,20 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
 
             if ($carrier_code && $carrier_name) {
                 $carriers[$carrier_code] = $carrier_name;
+
+                // Cache services for this carrier if available
+                if (isset($carrier['services']) && is_array($carrier['services'])) {
+                    $services = array();
+                    foreach ($carrier['services'] as $service) {
+                        if (isset($service['code']) && isset($service['name'])) {
+                            $services[$service['code']] = $service['name'];
+                        }
+                    }
+                    if (!empty($services)) {
+                        $cache_key = 'shipstation_services_' . $carrier_code;
+                        set_transient($cache_key, $services, 24 * HOUR_IN_SECONDS);
+                    }
+                }
             }
         }
 
