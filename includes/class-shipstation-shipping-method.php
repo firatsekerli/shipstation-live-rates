@@ -105,20 +105,19 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
             'canada_post' => 'Canada Post',
         );
 
+        // Get API credentials directly from database (instance properties aren't set yet during init)
+        $api_key = get_option('shipstation_live_rates_api_key', '');
+        $api_secret = get_option('shipstation_live_rates_api_secret', '');
+
         // Check if API credentials are set
-        if (empty($this->api_key) || empty($this->api_secret)) {
-            error_log('ShipStation: API credentials not set, using fallback carriers');
-            error_log('ShipStation: API Key empty: ' . (empty($this->api_key) ? 'YES' : 'NO'));
-            error_log('ShipStation: API Secret empty: ' . (empty($this->api_secret) ? 'YES' : 'NO'));
+        if (empty($api_key) || empty($api_secret)) {
             return $fallback_carriers;
         }
-
-        error_log('ShipStation: Fetching carriers from API...');
 
         // Make API request to get carriers
         $response = wp_remote_get($this->api_url . '/carriers', array(
             'headers' => array(
-                'Authorization' => 'Basic ' . base64_encode($this->api_key . ':' . $this->api_secret),
+                'Authorization' => 'Basic ' . base64_encode($api_key . ':' . $api_secret),
             ),
             'timeout' => 10,
         ));
@@ -131,12 +130,8 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         $body = wp_remote_retrieve_body($response);
         $carriers_data = json_decode($body, true);
 
-        // Log the raw response for debugging
-        error_log('ShipStation Carriers API Response: ' . print_r($carriers_data, true));
-
         if (empty($carriers_data) || !is_array($carriers_data)) {
             $this->log('Invalid carriers response from API');
-            error_log('ShipStation: Invalid carriers response');
             return $fallback_carriers;
         }
 
@@ -154,9 +149,6 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
                 $carriers[$carrier_code] = $carrier_name;
             }
         }
-
-        // Log processed carriers
-        error_log('ShipStation: Processed carriers: ' . print_r($carriers, true));
 
         // If no carriers found, use fallback
         if (empty($carriers)) {
