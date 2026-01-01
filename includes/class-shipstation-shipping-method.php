@@ -76,6 +76,16 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
     }
 
     /**
+     * Validate multiselect field
+     */
+    public function validate_multiselect_field($key, $value) {
+        if (is_array($value)) {
+            return array_map('sanitize_text_field', $value);
+        }
+        return array();
+    }
+
+    /**
      * Process admin options and clear caches
      */
     public function process_admin_options() {
@@ -87,17 +97,20 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_shipstation_services_%'");
         $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_timeout_shipstation_services_%'");
 
-        // Process the multiselect field properly
+        // Debug logging
+        error_log('ShipStation: Processing admin options');
         if (isset($_POST['woocommerce_shipstation_live_rates_service_codes'])) {
-            $service_codes = $_POST['woocommerce_shipstation_live_rates_service_codes'];
-            // Ensure it's an array and sanitize
-            if (is_array($service_codes)) {
-                $_POST['woocommerce_shipstation_live_rates_service_codes'] = array_map('sanitize_text_field', $service_codes);
-            }
+            error_log('ShipStation: Service codes POST data: ' . print_r($_POST['woocommerce_shipstation_live_rates_service_codes'], true));
         }
 
         // Call parent method to save settings
-        return parent::process_admin_options();
+        $result = parent::process_admin_options();
+
+        // Log what was saved
+        $saved_services = $this->get_option('service_codes');
+        error_log('ShipStation: Saved service codes: ' . print_r($saved_services, true));
+
+        return $result;
     }
     
     /**

@@ -204,4 +204,45 @@ jQuery(document).ready(function($) {
             console.log('ShipStation: Selected services:', values);
         }
     });
+
+    // Handle WooCommerce backbone modal save (shipping zone settings)
+    $(document).on('wc_backbone_modal_response', function(e, target) {
+        console.log('ShipStation: Backbone modal response');
+
+        // Ensure selectWoo/select2 values are committed to the DOM
+        var $servicesSelect = $('.shipstation-services-select');
+        if ($servicesSelect.length) {
+            var selectedValues = $servicesSelect.val();
+            console.log('ShipStation: Services before save:', selectedValues);
+
+            // Trigger change to ensure values are synced
+            $servicesSelect.trigger('change.select2');
+        }
+    });
+
+    // Before modal closes, ensure all values are set
+    $(document).on('click', '.wc-backbone-modal-main button.button-primary', function() {
+        console.log('ShipStation: Save button clicked');
+
+        var $servicesSelect = $('.shipstation-services-select');
+        if ($servicesSelect.length) {
+            // Make sure select2/selectWoo has committed its values
+            if ($.fn.selectWoo && $servicesSelect.data('selectWoo')) {
+                $servicesSelect.selectWoo('close');
+            } else if ($.fn.select2 && $servicesSelect.data('select2')) {
+                $servicesSelect.select2('close');
+            }
+
+            var values = $servicesSelect.val();
+            console.log('ShipStation: Final selected values:', values);
+
+            // Ensure the underlying select has the correct values
+            if (values && values.length > 0) {
+                $servicesSelect.find('option').prop('selected', false);
+                values.forEach(function(val) {
+                    $servicesSelect.find('option[value="' + val + '"]').prop('selected', true);
+                });
+            }
+        }
+    });
 });
