@@ -87,6 +87,15 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_shipstation_services_%'");
         $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_timeout_shipstation_services_%'");
 
+        // Process the multiselect field properly
+        if (isset($_POST['woocommerce_shipstation_live_rates_service_codes'])) {
+            $service_codes = $_POST['woocommerce_shipstation_live_rates_service_codes'];
+            // Ensure it's an array and sanitize
+            if (is_array($service_codes)) {
+                $_POST['woocommerce_shipstation_live_rates_service_codes'] = array_map('sanitize_text_field', $service_codes);
+            }
+        }
+
         // Call parent method to save settings
         return parent::process_admin_options();
     }
@@ -170,16 +179,18 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
     /**
      * Get available services for a specific carrier
      */
-    private function get_carrier_services($carrier_code) {
+    private function get_carrier_services($carrier_code, $force_refresh = false) {
         if (empty($carrier_code)) {
             return array();
         }
 
-        // Check cache first
+        // Check cache first (unless force refresh)
         $cache_key = 'shipstation_services_' . $carrier_code;
-        $cached_services = get_transient($cache_key);
-        if ($cached_services !== false) {
-            return $cached_services;
+        if (!$force_refresh) {
+            $cached_services = get_transient($cache_key);
+            if ($cached_services !== false) {
+                return $cached_services;
+            }
         }
 
         // Get API credentials
@@ -270,14 +281,15 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
             'service_codes' => array(
                 'title' => __('Services', 'shipstation-live-rates'),
                 'type' => 'multiselect',
-                'description' => __('Select specific services to offer. Leave empty to show all services for this carrier. The list updates based on your selected carrier.', 'shipstation-live-rates'),
-                'default' => '',
-                'desc_tip' => true,
-                'options' => $this->get_carrier_services($this->carrier_code),
+                'description' => __('Select specific services to offer. Leave empty to show all services for this carrier. The list updates based on your selected carrier. <a href="#" class="shipstation-refresh-services" style="color: #2271b1;">Refresh services list</a>', 'shipstation-live-rates'),
+                'default' => array(),
+                'desc_tip' => false,
+                'options' => $this->get_carrier_services($this->carrier_code, true),
                 'class' => 'wc-enhanced-select shipstation-services-select',
                 'custom_attributes' => array(
                     'data-placeholder' => __('Select services (optional)', 'shipstation-live-rates'),
-                    'data-carrier' => $this->carrier_code
+                    'data-carrier' => $this->carrier_code,
+                    'multiple' => 'multiple'
                 )
             ),
             'residential' => array(

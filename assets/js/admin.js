@@ -175,4 +175,33 @@ jQuery(document).ready(function($) {
             });
         }, 500);
     });
+
+    // Handle refresh services link
+    $(document).on('click', '.shipstation-refresh-services', function(e) {
+        e.preventDefault();
+        console.log('ShipStation: Refresh services clicked');
+
+        var $link = $(this);
+        var $carrierSelect = $('.shipstation-carrier-select').first();
+
+        if ($carrierSelect.val()) {
+            $link.text('Refreshing...');
+            loadServicesForCarrier($carrierSelect, false);
+            setTimeout(function() {
+                $link.text('Refresh services list');
+            }, 1000);
+        } else {
+            alert('Please select a carrier first');
+        }
+    });
+
+    // Ensure multiselect values are preserved before form submit
+    $('form').on('submit', function() {
+        console.log('ShipStation: Form submitting');
+        var $servicesSelect = $('.shipstation-services-select');
+        if ($servicesSelect.length) {
+            var values = $servicesSelect.val();
+            console.log('ShipStation: Selected services:', values);
+        }
+    });
 });
