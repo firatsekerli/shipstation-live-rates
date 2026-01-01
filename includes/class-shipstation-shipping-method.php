@@ -107,8 +107,13 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
 
         // Check if API credentials are set
         if (empty($this->api_key) || empty($this->api_secret)) {
+            error_log('ShipStation: API credentials not set, using fallback carriers');
+            error_log('ShipStation: API Key empty: ' . (empty($this->api_key) ? 'YES' : 'NO'));
+            error_log('ShipStation: API Secret empty: ' . (empty($this->api_secret) ? 'YES' : 'NO'));
             return $fallback_carriers;
         }
+
+        error_log('ShipStation: Fetching carriers from API...');
 
         // Make API request to get carriers
         $response = wp_remote_get($this->api_url . '/carriers', array(
@@ -126,18 +131,32 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         $body = wp_remote_retrieve_body($response);
         $carriers_data = json_decode($body, true);
 
+        // Log the raw response for debugging
+        error_log('ShipStation Carriers API Response: ' . print_r($carriers_data, true));
+
         if (empty($carriers_data) || !is_array($carriers_data)) {
             $this->log('Invalid carriers response from API');
+            error_log('ShipStation: Invalid carriers response');
             return $fallback_carriers;
         }
 
         // Process carriers into options array
         $carriers = array();
         foreach ($carriers_data as $carrier) {
-            if (isset($carrier['code']) && isset($carrier['name'])) {
-                $carriers[$carrier['code']] = $carrier['name'];
+            // Try different possible field names from ShipStation API
+            $carrier_code = isset($carrier['code']) ? $carrier['code'] :
+                           (isset($carrier['carrierCode']) ? $carrier['carrierCode'] : null);
+            $carrier_name = isset($carrier['name']) ? $carrier['name'] :
+                           (isset($carrier['nickname']) ? $carrier['nickname'] :
+                           (isset($carrier['friendlyName']) ? $carrier['friendlyName'] : null));
+
+            if ($carrier_code && $carrier_name) {
+                $carriers[$carrier_code] = $carrier_name;
             }
         }
+
+        // Log processed carriers
+        error_log('ShipStation: Processed carriers: ' . print_r($carriers, true));
 
         // If no carriers found, use fallback
         if (empty($carriers)) {
