@@ -12,19 +12,32 @@ jQuery(document).ready(function($) {
         var carrierCode = $carrierSelect.val();
         console.log('ShipStation: Carrier code:', carrierCode);
 
-        var $row = $carrierSelect.closest('tr');
-        var $servicesRow = $row.nextAll('tr').has('.shipstation-services-select').first();
-        var $servicesSelect = $servicesRow.find('.shipstation-services-select');
+        // Try multiple methods to find the services select
+        var $servicesSelect = null;
 
-        console.log('ShipStation: Services select found (method 1):', $servicesSelect.length);
+        // Method 1: Look in the same form
+        $servicesSelect = $carrierSelect.closest('form').find('.shipstation-services-select').first();
+        console.log('ShipStation: Services select found (in form):', $servicesSelect.length);
 
-        if (!$servicesSelect.length) {
-            // Try alternative selectors for different contexts
+        // Method 2: Look in the same table
+        if (!$servicesSelect || !$servicesSelect.length) {
             $servicesSelect = $carrierSelect.closest('table').find('.shipstation-services-select').first();
-            console.log('ShipStation: Services select found (method 2):', $servicesSelect.length);
+            console.log('ShipStation: Services select found (in table):', $servicesSelect.length);
         }
 
-        if (!$servicesSelect.length) {
+        // Method 3: Look in the same parent container (for modals)
+        if (!$servicesSelect || !$servicesSelect.length) {
+            $servicesSelect = $carrierSelect.closest('.wc-backbone-modal-content').find('.shipstation-services-select').first();
+            console.log('ShipStation: Services select found (in modal):', $servicesSelect.length);
+        }
+
+        // Method 4: Global search (last resort)
+        if (!$servicesSelect || !$servicesSelect.length) {
+            $servicesSelect = $('.shipstation-services-select').first();
+            console.log('ShipStation: Services select found (global):', $servicesSelect.length);
+        }
+
+        if (!$servicesSelect || !$servicesSelect.length) {
             console.log('ShipStation: Services select not found, aborting');
             return;
         }
