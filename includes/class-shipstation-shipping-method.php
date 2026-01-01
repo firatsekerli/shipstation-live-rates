@@ -374,13 +374,7 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
      * Render the full-page instance settings
      */
     private function render_instance_settings_page() {
-        // Get zone info
-        $zone = WC_Shipping_Zones::get_zone_by('instance_id', $this->instance_id);
-        $zone_name = $zone ? $zone->get_zone_name() : __('Shipping Zone', 'shipstation-live-rates');
-
         ?>
-        <h2><?php echo esc_html($this->get_method_title()); ?> - <?php echo esc_html($zone_name); ?></h2>
-
         <table class="form-table">
             <?php $this->generate_settings_html($this->get_instance_form_fields(), true); ?>
         </table>
