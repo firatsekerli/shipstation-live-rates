@@ -125,18 +125,19 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_shipstation_services_%'");
         $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_timeout_shipstation_services_%'");
 
+        // Call parent method to save standard settings first
+        $result = parent::process_admin_options();
+
         // Handle service_codes from our custom checkbox table
+        // This must be done AFTER parent::process_admin_options() so settings are initialized
         $service_codes_key = $this->get_field_key('service_codes');
         if (isset($_POST[$service_codes_key]) && is_array($_POST[$service_codes_key])) {
             $service_codes = array_map('sanitize_text_field', $_POST[$service_codes_key]);
-            update_option($this->get_option_key() . '[service_codes]', $service_codes);
+            $this->update_option('service_codes', $service_codes);
         } else {
             // No services selected, save empty array
-            update_option($this->get_option_key() . '[service_codes]', array());
+            $this->update_option('service_codes', array());
         }
-
-        // Call parent method to save other settings
-        $result = parent::process_admin_options();
 
         return $result;
     }
