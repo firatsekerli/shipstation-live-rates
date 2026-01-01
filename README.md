@@ -6,15 +6,16 @@ A WordPress plugin that integrates ShipStation's live shipping rates API with Wo
 
 - **Live Rate Calculations**: Get real-time shipping rates from ShipStation's `/rates/estimates/` endpoint
 - **Dynamic Carrier Detection**: Automatically fetches only carriers enabled in your ShipStation account
+- **Dynamic Service Selection**: Automatically loads available services based on selected carrier
 - **Multiple Carriers**: Support for all ShipStation carriers (FedEx, UPS, USPS, DHL, Canada Post, Stamps.com, and more)
-- **Service Filtering**: Display only specific shipping services
+- **Service Filtering**: Easy multiselect dropdown to choose specific shipping services
 - **Flexible Markup**: Add fixed or percentage-based markup to rates
 - **Automatic Conversions**: Handles weight and dimension unit conversions
 - **Residential/Commercial**: Toggle between residential and commercial delivery rates
 - **Other Costs**: Automatically includes `other_amount` charges from ShipStation
 - **Fallback Rates**: Set a fallback flat rate if API requests fail
 - **Debug Logging**: Built-in logging for troubleshooting
-- **Smart Caching**: Carrier list cached for 24 hours to optimize performance
+- **Smart Caching**: Carrier and service lists cached for 24 hours to optimize performance
 - **WooCommerce Shipping Zones**: Full integration with WooCommerce shipping zones
 
 ## Requirements
@@ -65,19 +66,17 @@ Click on **ShipStation Live Rates** to configure:
 
 #### Carrier Settings
 
-- **Carrier Code**: Select your carrier from the dropdown
+- **Carriers**: Select your carrier from the dropdown
   - The list shows **only carriers enabled in your ShipStation account**
   - Carriers are automatically fetched via ShipStation API
   - List is cached for 24 hours for performance
   - To refresh the carrier list, save the settings form
 
-- **Service Codes**: (Optional) Filter specific services, one per line:
-  ```
-  fedex_ground
-  fedex_2day
-  fedex_standard_overnight
-  ```
-  Leave empty to show all available services for the carrier
+- **Service Codes**: (Optional) Select specific services from the multiselect dropdown
+  - Services are **automatically loaded** based on your selected carrier
+  - Use the dropdown to select which services to offer customers
+  - Leave empty to show all available services for the carrier
+  - Changes when you select a different carrier
 
 - **Residential Delivery**: Check if most deliveries are to residential addresses (affects rates)
 
@@ -244,6 +243,15 @@ For issues or questions:
    - API response (with credentials removed)
 
 ## Changelog
+
+### 1.2.0
+- **New**: Dynamic service selection - automatically loads available services based on selected carrier
+- **New**: Multiselect dropdown for service codes (replaces textarea)
+- **New**: AJAX-powered service loading when carrier changes
+- **New**: Smart caching of services per carrier (24 hours)
+- **Improved**: Changed "Carrier Code" label to "Carriers" for clarity
+- **Improved**: Better UX - no need to manually enter service code slugs
+- **Improved**: Backwards compatible with old textarea format
 
 ### 1.1.0
 - **New**: Dynamic carrier detection - automatically fetches only enabled carriers from ShipStation account

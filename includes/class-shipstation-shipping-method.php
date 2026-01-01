@@ -76,11 +76,16 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
     }
 
     /**
-     * Process admin options and clear carrier cache
+     * Process admin options and clear caches
      */
     public function process_admin_options() {
         // Clear the carrier cache when settings are saved
         delete_transient('shipstation_enabled_carriers');
+
+        // Clear all service caches (for all carriers)
+        global $wpdb;
+        $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_shipstation_services_%'");
+        $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_timeout_shipstation_services_%'");
 
         // Call parent method to save settings
         return parent::process_admin_options();
@@ -163,6 +168,64 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
     }
 
     /**
+     * Get available services for a specific carrier
+     */
+    private function get_carrier_services($carrier_code) {
+        if (empty($carrier_code)) {
+            return array();
+        }
+
+        // Check cache first
+        $cache_key = 'shipstation_services_' . $carrier_code;
+        $cached_services = get_transient($cache_key);
+        if ($cached_services !== false) {
+            return $cached_services;
+        }
+
+        // Get API credentials
+        $api_key = get_option('shipstation_live_rates_api_key', '');
+        $api_secret = get_option('shipstation_live_rates_api_secret', '');
+
+        if (empty($api_key) || empty($api_secret)) {
+            return array();
+        }
+
+        // Make API request to get services for this carrier
+        $response = wp_remote_get($this->api_url . '/carriers/listservices?carrierCode=' . urlencode($carrier_code), array(
+            'headers' => array(
+                'Authorization' => 'Basic ' . base64_encode($api_key . ':' . $api_secret),
+            ),
+            'timeout' => 10,
+        ));
+
+        if (is_wp_error($response)) {
+            return array();
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $services_data = json_decode($body, true);
+
+        if (empty($services_data) || !is_array($services_data)) {
+            return array();
+        }
+
+        // Process services into options array
+        $services = array();
+        foreach ($services_data as $service) {
+            if (isset($service['code']) && isset($service['name'])) {
+                $services[$service['code']] = $service['name'];
+            }
+        }
+
+        // Cache services for 24 hours
+        if (!empty($services)) {
+            set_transient($cache_key, $services, 24 * HOUR_IN_SECONDS);
+        }
+
+        return $services;
+    }
+
+    /**
      * Initialize form fields
      */
     public function init_form_fields() {
@@ -196,19 +259,25 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
                 'description' => __('The carrier list is automatically fetched from your ShipStation account and cached for 24 hours. If you recently added a new carrier in ShipStation and don\'t see it below, save this form to refresh the list.', 'shipstation-live-rates'),
             ),
             'carrier_code' => array(
-                'title' => __('Carrier Code', 'shipstation-live-rates'),
+                'title' => __('Carriers', 'shipstation-live-rates'),
                 'type' => 'select',
                 'description' => __('Select the carrier for rate calculations in this zone. Only carriers enabled in your ShipStation account are shown.', 'shipstation-live-rates'),
                 'default' => 'stamps_com',
                 'options' => $this->get_enabled_carriers(),
-                'desc_tip' => true
+                'desc_tip' => true,
+                'class' => 'wc-enhanced-select shipstation-carrier-select'
             ),
             'service_codes' => array(
                 'title' => __('Service Codes', 'shipstation-live-rates'),
-                'type' => 'textarea',
-                'description' => __('Enter service codes to filter, one per line (e.g., fedex_ground, fedex_2day). Leave empty to show all services for this carrier.', 'shipstation-live-rates'),
+                'type' => 'multiselect',
+                'description' => __('Select specific services to offer. Leave empty to show all services for this carrier. The list updates based on your selected carrier.', 'shipstation-live-rates'),
                 'default' => '',
-                'desc_tip' => true
+                'desc_tip' => true,
+                'options' => array(),
+                'class' => 'wc-enhanced-select shipstation-services-select',
+                'custom_attributes' => array(
+                    'data-placeholder' => __('Select services (optional)', 'shipstation-live-rates')
+                )
             ),
             'residential' => array(
                 'title' => __('Residential Delivery', 'shipstation-live-rates'),
@@ -323,8 +392,17 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         
         // Filter by service codes if specified
         if (!empty($this->service_codes)) {
-            $service_codes = array_map('trim', explode("\n", $this->service_codes));
-            $request_body['serviceCodes'] = $service_codes;
+            // Handle both old format (newline-separated string) and new format (array from multiselect)
+            if (is_array($this->service_codes)) {
+                $service_codes = array_filter($this->service_codes); // Remove empty values
+            } else {
+                // Backwards compatibility with old textarea format
+                $service_codes = array_filter(array_map('trim', explode("\n", $this->service_codes)));
+            }
+
+            if (!empty($service_codes)) {
+                $request_body['serviceCodes'] = array_values($service_codes);
+            }
         }
         
         // Generate cache key based on request parameters
