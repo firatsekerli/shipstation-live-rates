@@ -79,10 +79,32 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
      * Validate multiselect field
      */
     public function validate_multiselect_field($key, $value) {
+        error_log('ShipStation: validate_multiselect_field called with key: ' . $key);
+        error_log('ShipStation: validate_multiselect_field value: ' . print_r($value, true));
+
         if (is_array($value)) {
             return array_map('sanitize_text_field', $value);
         }
         return array();
+    }
+
+    /**
+     * Get field value for multiselect fields
+     */
+    public function get_field_value($key, $field, $post_data = array()) {
+        $field_key = $this->get_field_key($key);
+
+        // For multiselect fields, get the value as an array
+        if (isset($field['type']) && $field['type'] === 'multiselect') {
+            if (!empty($post_data)) {
+                return isset($post_data[$field_key]) ? $post_data[$field_key] : array();
+            }
+            $value = $this->get_option($key, array());
+            return is_array($value) ? $value : array();
+        }
+
+        // For other fields, use parent method
+        return parent::get_field_value($key, $field, $post_data);
     }
 
     /**
