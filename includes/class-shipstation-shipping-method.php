@@ -71,7 +71,12 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         $this->enabled = $this->get_option('enabled');
         $this->title = $this->get_option('title');
         $this->carrier_code = $this->get_option('carrier_code', 'stamps_com');
-        $this->service_codes = $this->get_option('service_codes');
+        $this->service_codes = $this->get_option('service_codes', array());
+
+        // Debug: Log what was loaded
+        error_log('ShipStation INIT: Loaded service_codes: ' . json_encode($this->service_codes));
+        error_log('ShipStation INIT: service_codes type: ' . gettype($this->service_codes));
+        error_log('ShipStation INIT: service_codes empty: ' . (empty($this->service_codes) ? 'yes' : 'no'));
         $this->residential = $this->get_option('residential', 'yes');
         $this->markup_type = $this->get_option('markup_type', 'none');
         $this->markup_amount = $this->get_option('markup_amount', '0');
