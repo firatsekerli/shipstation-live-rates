@@ -580,20 +580,32 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
             ),
             'residential' => ($this->residential === 'yes')
         );
-        
+
+        // Debug: Log service codes configuration
+        error_log('ShipStation: service_codes from settings: ' . print_r($this->service_codes, true));
+        error_log('ShipStation: service_codes is_array: ' . (is_array($this->service_codes) ? 'yes' : 'no'));
+        error_log('ShipStation: service_codes empty: ' . (empty($this->service_codes) ? 'yes' : 'no'));
+
         // Filter by service codes if specified
         if (!empty($this->service_codes)) {
             // Handle both old format (newline-separated string) and new format (array from multiselect)
             if (is_array($this->service_codes)) {
                 $service_codes = array_filter($this->service_codes); // Remove empty values
+                error_log('ShipStation: Filtered service codes (array): ' . print_r($service_codes, true));
             } else {
                 // Backwards compatibility with old textarea format
                 $service_codes = array_filter(array_map('trim', explode("\n", $this->service_codes)));
+                error_log('ShipStation: Filtered service codes (string): ' . print_r($service_codes, true));
             }
 
             if (!empty($service_codes)) {
                 $request_body['serviceCodes'] = array_values($service_codes);
+                error_log('ShipStation: Added serviceCodes to request: ' . print_r($request_body['serviceCodes'], true));
+            } else {
+                error_log('ShipStation: service_codes was not empty but after filtering it is empty');
             }
+        } else {
+            error_log('ShipStation: No service codes configured - will return all available services');
         }
         
         // Generate cache key based on request parameters
