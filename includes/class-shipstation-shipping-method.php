@@ -186,6 +186,9 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         $body = wp_remote_retrieve_body($response);
         $carriers_data = json_decode($body, true);
 
+        // Debug: Log the raw API response
+        error_log('ShipStation: /carriers API response: ' . print_r($carriers_data, true));
+
         if (empty($carriers_data) || !is_array($carriers_data)) {
             $this->log('Invalid carriers response from API');
             return $fallback_carriers;
@@ -194,6 +197,9 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         // Process carriers into options array and extract services
         $carriers = array();
         foreach ($carriers_data as $carrier) {
+            // Debug: Log each carrier's data
+            error_log('ShipStation: Processing carrier: ' . print_r($carrier, true));
+
             // Try different possible field names from ShipStation API
             $carrier_code = isset($carrier['code']) ? $carrier['code'] :
                            (isset($carrier['carrierCode']) ? $carrier['carrierCode'] : null);
@@ -206,6 +212,7 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
 
                 // Cache services for this carrier if available
                 if (isset($carrier['services']) && is_array($carrier['services'])) {
+                    error_log('ShipStation: Found services array for ' . $carrier_code);
                     $services = array();
                     foreach ($carrier['services'] as $service) {
                         if (isset($service['code']) && isset($service['name'])) {
@@ -213,9 +220,12 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
                         }
                     }
                     if (!empty($services)) {
+                        error_log('ShipStation: Caching ' . count($services) . ' services for ' . $carrier_code);
                         $cache_key = 'shipstation_services_' . $carrier_code;
                         set_transient($cache_key, $services, 24 * HOUR_IN_SECONDS);
                     }
+                } else {
+                    error_log('ShipStation: No services array found for ' . $carrier_code);
                 }
             }
         }
