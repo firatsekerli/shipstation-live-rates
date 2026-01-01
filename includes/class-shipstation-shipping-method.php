@@ -379,31 +379,33 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
 
         ?>
         <h2><?php echo esc_html($this->get_method_title()); ?> - <?php echo esc_html($zone_name); ?></h2>
-        <p><?php echo esc_html($this->get_method_description()); ?></p>
 
         <table class="form-table">
             <?php $this->generate_settings_html($this->get_instance_form_fields(), true); ?>
         </table>
 
+        <div id="shipstation-services-container">
         <?php
         // Render services checkbox table if a carrier is selected
         if (!empty($this->carrier_code)) {
-            $this->render_services_table();
+            $this->render_services_table_content();
         } else {
-            echo '<div class="notice notice-info"><p>' . __('Select a carrier and save settings to see available services.', 'shipstation-live-rates') . '</p></div>';
+            echo '<div class="notice notice-info"><p>' . __('Select a carrier to see available services.', 'shipstation-live-rates') . '</p></div>';
         }
         ?>
+        </div>
         <?php
     }
 
     /**
-     * Render services checkbox table
+     * Render services checkbox table content (without container div)
      */
-    private function render_services_table() {
+    private function render_services_table_content() {
         $services = $this->get_carrier_services($this->carrier_code, false);
         $selected_services = $this->get_option('service_codes', array());
 
         if (empty($services)) {
+            echo '<div class="notice notice-warning"><p>' . __('No services found for this carrier.', 'shipstation-live-rates') . '</p></div>';
             return;
         }
 
@@ -413,13 +415,12 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         }
 
         ?>
-        <div id="shipstation-services-container">
-            <h3><?php _e('Available Services', 'shipstation-live-rates'); ?></h3>
-            <p class="description">
-                <?php _e('Select which shipping services to offer customers. Leave all unchecked to show all services.', 'shipstation-live-rates'); ?>
-            </p>
+        <h3><?php _e('Available Services', 'shipstation-live-rates'); ?></h3>
+        <p class="description">
+            <?php _e('Select which shipping services to offer customers. Leave all unchecked to show all services.', 'shipstation-live-rates'); ?>
+        </p>
 
-            <table class="widefat shipstation-services-table" style="max-width: 800px;">
+        <table class="widefat shipstation-services-table" style="max-width: 800px;">
             <thead>
                 <tr>
                     <th style="width: 50px; text-align: center;">
@@ -484,7 +485,6 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
             background: #f9f9f9;
         }
         </style>
-        </div>
         <?php
     }
 
