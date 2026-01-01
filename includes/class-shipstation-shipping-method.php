@@ -619,9 +619,17 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
                 return $cached_rates;
             }
         }
-        
+
         $this->log('Request body: ' . print_r($request_body, true));
-        
+
+        // Debug: Log the complete request body with serviceCodes
+        error_log('ShipStation: COMPLETE REQUEST BODY: ' . json_encode($request_body, JSON_PRETTY_PRINT));
+        if (isset($request_body['serviceCodes'])) {
+            error_log('ShipStation: REQUEST HAS serviceCodes: ' . json_encode($request_body['serviceCodes']));
+        } else {
+            error_log('ShipStation: REQUEST MISSING serviceCodes - will get all services!');
+        }
+
         // Make API request
         $response = wp_remote_post($this->api_url . '/shipments/getrates', array(
             'headers' => array(
