@@ -598,31 +598,15 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         );
 
         // Debug: Log service codes configuration
-        error_log('ShipStation: service_codes from settings: ' . print_r($this->service_codes, true));
-        error_log('ShipStation: service_codes is_array: ' . (is_array($this->service_codes) ? 'yes' : 'no'));
-        error_log('ShipStation: service_codes empty: ' . (empty($this->service_codes) ? 'yes' : 'no'));
-
-        // Filter by service codes if specified
-        if (!empty($this->service_codes)) {
-            // Handle both old format (newline-separated string) and new format (array from multiselect)
-            if (is_array($this->service_codes)) {
-                $service_codes = array_filter($this->service_codes); // Remove empty values
-                error_log('ShipStation: Filtered service codes (array): ' . print_r($service_codes, true));
-            } else {
-                // Backwards compatibility with old textarea format
-                $service_codes = array_filter(array_map('trim', explode("\n", $this->service_codes)));
-                error_log('ShipStation: Filtered service codes (string): ' . print_r($service_codes, true));
-            }
-
-            if (!empty($service_codes)) {
-                $request_body['serviceCodes'] = array_values($service_codes);
-                error_log('ShipStation: Added serviceCodes to request: ' . print_r($request_body['serviceCodes'], true));
-            } else {
-                error_log('ShipStation: service_codes was not empty but after filtering it is empty');
-            }
+        error_log('ShipStation: service_codes from settings: ' . json_encode($this->service_codes));
+        if (!empty($this->service_codes) && is_array($this->service_codes)) {
+            error_log('ShipStation: Will filter ' . count($this->service_codes) . ' service(s) after getting API response');
         } else {
-            error_log('ShipStation: No service codes configured - will return all available services');
+            error_log('ShipStation: No service filtering - will show all services from API');
         }
+
+        // NOTE: ShipStation API doesn't support filtering by multiple serviceCodes in the request
+        // We filter the results after receiving them in process_rates()
         
         // Generate cache key based on request parameters
         $cache_key = 'shipstation_rates_' . md5(json_encode($request_body));
@@ -637,14 +621,6 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         }
 
         $this->log('Request body: ' . print_r($request_body, true));
-
-        // Debug: Log the complete request body with serviceCodes
-        error_log('ShipStation: COMPLETE REQUEST BODY: ' . json_encode($request_body, JSON_PRETTY_PRINT));
-        if (isset($request_body['serviceCodes'])) {
-            error_log('ShipStation: REQUEST HAS serviceCodes: ' . json_encode($request_body['serviceCodes']));
-        } else {
-            error_log('ShipStation: REQUEST MISSING serviceCodes - will get all services!');
-        }
 
         // Make API request
         $response = wp_remote_post($this->api_url . '/shipments/getrates', array(
@@ -699,7 +675,16 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
             if (!isset($rate_data['shipmentCost']) || !isset($rate_data['serviceName'])) {
                 continue;
             }
-            
+
+            // Filter by selected service codes if specified
+            if (!empty($this->service_codes) && is_array($this->service_codes)) {
+                $service_code = isset($rate_data['serviceCode']) ? $rate_data['serviceCode'] : '';
+                if (!empty($service_code) && !in_array($service_code, $this->service_codes)) {
+                    error_log('ShipStation: Filtering out service: ' . $service_code . ' (not in selected services)');
+                    continue; // Skip this rate - not in selected services
+                }
+            }
+
             // Get base shipping cost
             $cost = floatval($rate_data['shipmentCost']);
             
