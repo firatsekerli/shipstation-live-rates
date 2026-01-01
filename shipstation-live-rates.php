@@ -3,7 +3,7 @@
  * Plugin Name: ShipStation Live Rates
  * Plugin URI: https://wapiti.digital
  * Description: Retrieve live shipping rates from ShipStation API for WooCommerce
- * Version: 1.0.8
+ * Version: 1.1.0
  * Author: Wapiti Digital
  * Author URI: https://wapiti.digital
  * Text Domain: shipstation-live-rates
@@ -31,7 +31,7 @@ class ShipStation_Live_Rates {
     /**
      * Plugin version
      */
-    const VERSION = '1.0.8';
+    const VERSION = '1.1.0';
     
     /**
      * Instance of this class

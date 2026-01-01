@@ -74,13 +74,89 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
         // Save settings
         add_action('woocommerce_update_options_shipping_' . $this->id, array($this, 'process_admin_options'));
     }
+
+    /**
+     * Process admin options and clear carrier cache
+     */
+    public function process_admin_options() {
+        // Clear the carrier cache when settings are saved
+        delete_transient('shipstation_enabled_carriers');
+
+        // Call parent method to save settings
+        return parent::process_admin_options();
+    }
     
+    /**
+     * Get enabled carriers from ShipStation API
+     */
+    private function get_enabled_carriers() {
+        // Check cache first
+        $cached_carriers = get_transient('shipstation_enabled_carriers');
+        if ($cached_carriers !== false) {
+            return $cached_carriers;
+        }
+
+        // Fallback carriers if API fails
+        $fallback_carriers = array(
+            'stamps_com' => 'USPS (Stamps.com)',
+            'ups' => 'UPS',
+            'fedex' => 'FedEx',
+            'dhl_express' => 'DHL Express',
+            'canada_post' => 'Canada Post',
+        );
+
+        // Check if API credentials are set
+        if (empty($this->api_key) || empty($this->api_secret)) {
+            return $fallback_carriers;
+        }
+
+        // Make API request to get carriers
+        $response = wp_remote_get($this->api_url . '/carriers', array(
+            'headers' => array(
+                'Authorization' => 'Basic ' . base64_encode($this->api_key . ':' . $this->api_secret),
+            ),
+            'timeout' => 10,
+        ));
+
+        if (is_wp_error($response)) {
+            $this->log('Failed to fetch carriers: ' . $response->get_error_message());
+            return $fallback_carriers;
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $carriers_data = json_decode($body, true);
+
+        if (empty($carriers_data) || !is_array($carriers_data)) {
+            $this->log('Invalid carriers response from API');
+            return $fallback_carriers;
+        }
+
+        // Process carriers into options array
+        $carriers = array();
+        foreach ($carriers_data as $carrier) {
+            if (isset($carrier['code']) && isset($carrier['name'])) {
+                $carriers[$carrier['code']] = $carrier['name'];
+            }
+        }
+
+        // If no carriers found, use fallback
+        if (empty($carriers)) {
+            $this->log('No carriers returned from API, using fallback');
+            return $fallback_carriers;
+        }
+
+        // Cache carriers for 24 hours
+        set_transient('shipstation_enabled_carriers', $carriers, 24 * HOUR_IN_SECONDS);
+
+        return $carriers;
+    }
+
     /**
      * Initialize form fields
      */
     public function init_form_fields() {
         $global_settings_url = admin_url('admin.php?page=wc-settings&tab=shipping&section=shipstation_live_rates');
-        
+
         $this->instance_form_fields = array(
             'enabled' => array(
                 'title' => __('Enable/Disable', 'shipstation-live-rates'),
@@ -103,18 +179,17 @@ class WC_ShipStation_Shipping_Method extends WC_Shipping_Method {
                     $global_settings_url
                 ),
             ),
+            'carrier_notice' => array(
+                'title' => __('Available Carriers', 'shipstation-live-rates'),
+                'type' => 'title',
+                'description' => __('The carrier list is automatically fetched from your ShipStation account and cached for 24 hours. If you recently added a new carrier in ShipStation and don\'t see it below, save this form to refresh the list.', 'shipstation-live-rates'),
+            ),
             'carrier_code' => array(
                 'title' => __('Carrier Code', 'shipstation-live-rates'),
                 'type' => 'select',
-                'description' => __('Select the carrier for rate calculations in this zone.', 'shipstation-live-rates'),
+                'description' => __('Select the carrier for rate calculations in this zone. Only carriers enabled in your ShipStation account are shown.', 'shipstation-live-rates'),
                 'default' => 'stamps_com',
-                'options' => array(
-                    'stamps_com' => 'USPS (Stamps.com)',
-                    'ups' => 'UPS',
-                    'fedex' => 'FedEx',
-                    'dhl_express' => 'DHL Express',
-                    'canada_post' => 'Canada Post',
-                ),
+                'options' => $this->get_enabled_carriers(),
                 'desc_tip' => true
             ),
             'service_codes' => array(

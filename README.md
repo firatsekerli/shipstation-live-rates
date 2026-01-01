@@ -5,7 +5,8 @@ A WordPress plugin that integrates ShipStation's live shipping rates API with Wo
 ## Features
 
 - **Live Rate Calculations**: Get real-time shipping rates from ShipStation's `/rates/estimates/` endpoint
-- **Multiple Carriers**: Support for FedEx, UPS, USPS, DHL, Canada Post, and Stamps.com
+- **Dynamic Carrier Detection**: Automatically fetches only carriers enabled in your ShipStation account
+- **Multiple Carriers**: Support for all ShipStation carriers (FedEx, UPS, USPS, DHL, Canada Post, Stamps.com, and more)
 - **Service Filtering**: Display only specific shipping services
 - **Flexible Markup**: Add fixed or percentage-based markup to rates
 - **Automatic Conversions**: Handles weight and dimension unit conversions
@@ -13,6 +14,7 @@ A WordPress plugin that integrates ShipStation's live shipping rates API with Wo
 - **Other Costs**: Automatically includes `other_amount` charges from ShipStation
 - **Fallback Rates**: Set a fallback flat rate if API requests fail
 - **Debug Logging**: Built-in logging for troubleshooting
+- **Smart Caching**: Carrier list cached for 24 hours to optimize performance
 - **WooCommerce Shipping Zones**: Full integration with WooCommerce shipping zones
 
 ## Requirements
@@ -63,7 +65,12 @@ Click on **ShipStation Live Rates** to configure:
 
 #### Carrier Settings
 
-- **Carrier Code**: Select your carrier (FedEx, UPS, USPS, etc.)
+- **Carrier Code**: Select your carrier from the dropdown
+  - The list shows **only carriers enabled in your ShipStation account**
+  - Carriers are automatically fetched via ShipStation API
+  - List is cached for 24 hours for performance
+  - To refresh the carrier list, save the settings form
+
 - **Service Codes**: (Optional) Filter specific services, one per line:
   ```
   fedex_ground
@@ -168,6 +175,22 @@ usps_parcel_select
 
 ## Troubleshooting
 
+### Carrier Not Showing in Dropdown
+
+1. **Verify Carrier is Enabled in ShipStation**:
+   - Log in to ShipStation
+   - Go to Settings > Shipping > Carriers
+   - Ensure the carrier is connected and enabled
+
+2. **Refresh Carrier Cache**:
+   - Go to the shipping method settings
+   - Click "Save changes" to refresh the carrier list
+   - The cache automatically updates every 24 hours
+
+3. **Check API Credentials**:
+   - Verify API Key and Secret have correct permissions
+   - Ensure credentials can access carrier information
+
 ### No Rates Showing
 
 1. **Check API Credentials**:
@@ -221,6 +244,12 @@ For issues or questions:
    - API response (with credentials removed)
 
 ## Changelog
+
+### 1.1.0
+- **New**: Dynamic carrier detection - automatically fetches only enabled carriers from ShipStation account
+- **New**: Smart caching of carrier list (24 hours) for improved performance
+- **New**: Automatic carrier list refresh when saving settings
+- **Improved**: Better user experience - only shows relevant carriers
 
 ### 1.0.0
 - Initial release
